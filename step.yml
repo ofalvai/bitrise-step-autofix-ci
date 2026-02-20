@@ -1,4 +1,9 @@
 title: Autofix CI
+
+
+
+
+
 summary: Commits and pushes any local file changes made by previous steps, then fails the build to trigger a fresh run.
 description: |
   Autofix CI detects uncommitted file changes left by previous steps (e.g. code formatters, linters with auto-fix, code generators) and automatically commits and pushes them back to the source branch.
