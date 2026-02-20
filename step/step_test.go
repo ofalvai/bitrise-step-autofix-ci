@@ -41,42 +41,6 @@ func Test_isForkPR(t *testing.T) {
 	}
 }
 
-func Test_resolvePushBranch(t *testing.T) {
-	tests := []struct {
-		name         string
-		prHeadBranch string
-		gitBranch    string
-		want         string
-	}{
-		{
-			name:         "PR build uses PR head branch",
-			prHeadBranch: "feature/my-pr",
-			gitBranch:    "main",
-			want:         "feature/my-pr",
-		},
-		{
-			name:         "push build falls back to git branch",
-			prHeadBranch: "",
-			gitBranch:    "main",
-			want:         "main",
-		},
-		{
-			name:         "both empty returns empty",
-			prHeadBranch: "",
-			gitBranch:    "",
-			want:         "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := resolvePushBranch(tt.prHeadBranch, tt.gitBranch)
-			if got != tt.want {
-				t.Errorf("resolvePushBranch() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
 
 func Test_checkForCIConfigChanges(t *testing.T) {
 	tests := []struct {
@@ -145,6 +109,7 @@ func Test_checkForCIConfigChanges(t *testing.T) {
 		})
 	}
 }
+
 
 func Test_isGitHubAppPermissionDenied(t *testing.T) {
 	tests := []struct {

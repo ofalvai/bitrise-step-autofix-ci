@@ -71,7 +71,6 @@ func (s Step) Run() (Result, error) {
 	// Bitrise system env vars — not step inputs, read directly from the environment.
 	gitRepoURL := s.envRepo.Get("GIT_REPOSITORY_URL")
 	prRepoURL := s.envRepo.Get("BITRISEIO_PULL_REQUEST_REPOSITORY_URL")
-	prHeadBranch := s.envRepo.Get("BITRISEIO_PULL_REQUEST_HEAD_BRANCH")
 	gitBranch := s.envRepo.Get("BITRISE_GIT_BRANCH")
 
 	if isForkPR(gitRepoURL, prRepoURL) {
@@ -101,13 +100,12 @@ func (s Step) Run() (Result, error) {
 		return Result{AutofixNeeded: true}, fmt.Errorf("security check failed: %w", err)
 	}
 
-	pushBranch := resolvePushBranch(prHeadBranch, gitBranch)
-	if pushBranch == "" {
-		return Result{AutofixNeeded: true}, fmt.Errorf("could not determine push target branch: BITRISEIO_PULL_REQUEST_HEAD_BRANCH and BITRISE_GIT_BRANCH are both empty")
+	if gitBranch == "" {
+		return Result{AutofixNeeded: true}, fmt.Errorf("could not determine push target branch: BITRISE_GIT_BRANCH is empty")
 	}
 
 	s.logger.Println()
-	s.logger.Infof("Committing and pushing changes to branch: %s", pushBranch)
+	s.logger.Infof("Committing and pushing changes to branch: %s", gitBranch)
 
 	if err := s.gitAddAll(); err != nil {
 		return Result{AutofixNeeded: true}, fmt.Errorf("git add: %w", err)
@@ -117,12 +115,12 @@ func (s Step) Run() (Result, error) {
 		return Result{AutofixNeeded: true}, fmt.Errorf("git commit: %w", err)
 	}
 
-	if err := s.gitPush(input.GitUsername, input.GitToken, pushBranch); err != nil {
+	if err := s.gitPush(input.GitUsername, input.GitToken, gitBranch); err != nil {
 		return Result{AutofixNeeded: true}, fmt.Errorf("git push: %w", err)
 	}
 
 	s.logger.Println()
-	s.logger.Donef("Successfully pushed autofix commit to %s", pushBranch)
+	s.logger.Donef("Successfully pushed autofix commit to %s", gitBranch)
 
 	return Result{
 		AutofixNeeded: true,
@@ -159,16 +157,6 @@ func checkForCIConfigChanges(changedFiles []string) error {
 	return nil
 }
 
-// resolvePushBranch picks the correct branch to push to.
-// For PR builds use the PR head branch; for push builds use the current branch.
-// The build may be in detached HEAD state (shallow clone of the merge ref), so we
-// always push to a resolved branch name rather than relying on HEAD.
-func resolvePushBranch(prHeadBranch, gitBranch string) string {
-	if prHeadBranch != "" {
-		return prHeadBranch
-	}
-	return gitBranch
-}
 
 func (s Step) getChangedFiles() ([]string, error) {
 	// git status --porcelain covers both modified tracked files and new untracked files.
