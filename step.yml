@@ -1,0 +1,81 @@
+title: Autofix CI
+summary: Commits and pushes any local file changes made by previous steps, then fails the build to trigger a fresh run.
+description: |
+  Autofix CI detects uncommitted file changes left by previous steps (e.g. code formatters, linters with auto-fix, code generators) and automatically commits and pushes them back to the source branch.
+
+  After pushing, the step **intentionally fails the build** so that the newly pushed commit triggers a fresh CI run — which will succeed because the fixes are now in place.
+
+  #### How it works
+
+  1. Detects changed files via `git diff HEAD`
+  2. Aborts if any changed file is a Bitrise CI config (`bitrise.yml`, `bitrise.yaml`, `.bitrise/**`) to prevent privilege escalation
+  3. Commits all changes using a bot identity (`Bitrise Autofix`)
+  4. Pushes to the source branch using the Bitrise-provided git credentials
+  5. Exits with failure so CI gates don't pass on the unfixed commit
+
+  #### Fork PRs
+
+  Fork PRs are automatically skipped. The step cannot push to a forked repository with the provided credentials, and skips gracefully instead of failing.
+
+  #### Outputs
+
+  - `AUTOFIX_NEEDED`: `true` if uncommitted changes were detected
+  - `AUTOFIX_PUSHED`: `true` if the autofix commit was pushed successfully
+  - `AUTOFIX_FILE_COUNT`: number of files included in the autofix commit
+
+website: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
+source_code_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
+support_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci/issues
+
+type_tags:
+- utility
+
+run_if: .IsCI
+
+toolkit:
+  go:
+    package_name: github.com/bitrise-steplib/bitrise-step-autofix-ci
+
+inputs:
+- git_username: $GIT_HTTP_USERNAME
+  opts:
+    title: Git username
+    summary: Username for authenticating the git push. Defaults to the Bitrise-provided HTTP username.
+    is_sensitive: true
+
+- git_token: $GIT_HTTP_PASSWORD
+  opts:
+    title: Git token
+    summary: Token or password for authenticating the git push. Defaults to the Bitrise-provided HTTP password.
+    is_sensitive: true
+
+- commit_message: "Bitrise CI Autofix"
+  opts:
+    title: Commit message
+    summary: Message to use for the autofix commit.
+    is_required: true
+
+- verbose: "false"
+  opts:
+    title: Verbose logging
+    summary: Enable logging additional information for troubleshooting.
+    is_required: true
+    value_options:
+    - "true"
+    - "false"
+
+outputs:
+- AUTOFIX_NEEDED:
+  opts:
+    title: Autofix needed
+    summary: Whether uncommitted changes were detected. `true` or `false`.
+
+- AUTOFIX_PUSHED:
+  opts:
+    title: Autofix pushed
+    summary: Whether the autofix commit was successfully pushed. `true` or `false`.
+
+- AUTOFIX_FILE_COUNT:
+  opts:
+    title: Autofix file count
+    summary: Number of files included in the autofix commit.
