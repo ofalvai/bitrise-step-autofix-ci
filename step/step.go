@@ -240,7 +240,24 @@ func (s Step) gitPush(username, token, branch string) error {
 	}, &command.Opts{Env: helper.Env})
 	out, err := cmd.RunAndReturnTrimmedCombinedOutput()
 	if err != nil {
+		if isGitHubAppPermissionDenied(out) {
+			appSlug := s.envRepo.Get("BITRISE_APP_SLUG")
+			return fmt.Errorf(
+				"push failed: the GitHub App token does not have write access to this repository.\n"+
+					"Go to https://app.bitrise.io/app/%s/settings/repository and enable "+
+					"\"Extend GitHub App permissions to builds\".\n\nOriginal error: %w\n%s",
+				appSlug, err, out,
+			)
+		}
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 	return nil
+}
+
+// isGitHubAppPermissionDenied detects the specific 403 error that GitHub returns
+// when a build's GitHub App token lacks write permission to the repository.
+// This is common on Bitrise because write access must be explicitly enabled in
+// the repository settings ("Extend GitHub App permissions to builds").
+func isGitHubAppPermissionDenied(gitOutput string) bool {
+	return strings.Contains(gitOutput, "remote: Permission to") && strings.Contains(gitOutput, "denied")
 }

@@ -146,6 +146,40 @@ func Test_checkForCIConfigChanges(t *testing.T) {
 	}
 }
 
+func Test_isGitHubAppPermissionDenied(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{
+			name: "GitHub App permission denied",
+			// Copied from a real Bitrise build failure.
+			output: "remote: Permission to ofalvai/bitrise-step-autofix-ci.git denied to bitrise[bot].\nfatal: unable to access 'https://github.com/ofalvai/bitrise-step-autofix-ci.git/': The requested URL returned error: 403",
+			want:  true,
+		},
+		{
+			name:   "unrelated push failure",
+			output: "fatal: unable to access 'https://github.com/org/repo.git/': Could not resolve host: github.com",
+			want:   false,
+		},
+		{
+			name:   "empty output",
+			output: "",
+			want:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isGitHubAppPermissionDenied(tt.output)
+			if got != tt.want {
+				t.Errorf("isGitHubAppPermissionDenied() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func Test_parseGitStatus(t *testing.T) {
 	tests := []struct {
 		name   string
