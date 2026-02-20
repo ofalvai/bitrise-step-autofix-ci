@@ -63,8 +63,9 @@ func (s Step) Run() (Result, error) {
 
 	// The step.yml defaults expand $GIT_HTTP_USERNAME/$GIT_HTTP_PASSWORD before the binary runs,
 	// so these are already resolved by the time we get here.
-	if input.GitUsername == "" || input.GitToken == "" {
-		return Result{}, fmt.Errorf("git credentials are required: set git_username and git_token inputs, or ensure GIT_HTTP_USERNAME and GIT_HTTP_PASSWORD are available in the environment")
+	// Username is optional: GitHub App installations provide only a short-lived token.
+	if input.GitToken == "" {
+		return Result{}, fmt.Errorf("git token is required: set git_token input or ensure GIT_HTTP_PASSWORD is available in the environment")
 	}
 
 	// Bitrise system env vars — not step inputs, read directly from the environment.

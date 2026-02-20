@@ -56,3 +56,33 @@ func TestWriteHelper(t *testing.T) {
 		t.Errorf("script output %q missing password=%s", output, token)
 	}
 }
+
+// TestWriteHelper_tokenOnly covers GitHub App installations, which provide a
+// short-lived token with no username (GIT_HTTP_USERNAME is not set by Bitrise
+// for GitHub App builds). The helper must fall back to "x-access-token" — the
+// username GitHub requires for HTTPS git operations with an App installation token
+// (documented at https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation).
+func TestWriteHelper_tokenOnly(t *testing.T) {
+	const token = "ghs_short-lived-app-token"
+
+	helper, err := WriteHelper("", token)
+	if err != nil {
+		t.Fatalf("WriteHelper() error = %v", err)
+	}
+	defer os.Remove(helper.Path)
+
+	cmd := exec.Command(helper.Path)
+	cmd.Env = helper.Env
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("execute helper script: %v", err)
+	}
+
+	output := string(out)
+	if !strings.Contains(output, "username="+gitHubAppUsername) {
+		t.Errorf("script output %q missing username=%s fallback", output, gitHubAppUsername)
+	}
+	if !strings.Contains(output, "password="+token) {
+		t.Errorf("script output %q missing password=%s", output, token)
+	}
+}
