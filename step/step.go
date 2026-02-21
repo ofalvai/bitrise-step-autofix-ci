@@ -107,6 +107,10 @@ func (s Step) Run() (Result, error) {
 	s.logger.Println()
 	s.logger.Infof("Committing and pushing changes to branch: %s", gitBranch)
 
+	if err := s.gitFetchAndCheckout(gitBranch); err != nil {
+		return Result{AutofixNeeded: true}, fmt.Errorf("checkout branch: %w", err)
+	}
+
 	if err := s.gitAddAll(); err != nil {
 		return Result{AutofixNeeded: true}, fmt.Errorf("git add: %w", err)
 	}
@@ -190,6 +194,25 @@ func parseGitStatus(output string) []string {
 		files = append(files, line[3:])
 	}
 	return files
+}
+
+func (s Step) gitFetchAndCheckout(branch string) error {
+	// PR builds check out refs/pull/N/merge — a temporary merge commit GitHub
+	// creates for CI. Its parent chain includes base-branch commits, so pushing
+	// HEAD directly to the PR branch would be a non-fast-forward. We fetch and
+	// reset to the actual branch tip so our autofix commit lands on top of it.
+	// Uncommitted working-tree changes (the autofix edits) survive the checkout.
+	fetchCmd := s.commandFactory.Create("git", []string{"fetch", "--depth", "1", "origin", branch}, nil)
+	if out, err := fetchCmd.RunAndReturnTrimmedCombinedOutput(); err != nil {
+		return fmt.Errorf("%w\n%s", err, out)
+	}
+
+	checkoutCmd := s.commandFactory.Create("git", []string{"checkout", "-B", branch, "origin/" + branch}, nil)
+	if out, err := checkoutCmd.RunAndReturnTrimmedCombinedOutput(); err != nil {
+		return fmt.Errorf("%w\n%s", err, out)
+	}
+
+	return nil
 }
 
 func (s Step) gitAddAll() error {
