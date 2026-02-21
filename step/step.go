@@ -217,17 +217,20 @@ func (s Step) gitFetchAndCheckout(branch string) error {
 	// PR builds check out refs/pull/N/merge — a temporary merge commit GitHub
 	// creates for CI. Its parent chain includes base-branch commits, so pushing
 	// HEAD directly to the PR branch would be a non-fast-forward. We fetch and
-	// reset to the actual branch tip so our autofix commit lands on top of it.
-	// Uncommitted working-tree changes (the autofix edits) survive the checkout.
+	// switch to the actual branch tip so our autofix commit lands on top of it.
+	//
+	// --autostash handles the case where an autofix file also differs between the
+	// merge ref and the branch tip (base branch touched the same file): git switch
+	// would otherwise refuse with "your local changes would be overwritten".
 	s.logger.Debugf("$ git fetch --depth 1 origin %s", branch)
 	fetchCmd := s.commandFactory.Create("git", []string{"fetch", "--depth", "1", "origin", branch}, nil)
 	if out, err := fetchCmd.RunAndReturnTrimmedCombinedOutput(); err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 
-	s.logger.Debugf("$ git checkout -B %s origin/%s", branch, branch)
-	checkoutCmd := s.commandFactory.Create("git", []string{"checkout", "-B", branch, "origin/" + branch}, nil)
-	if out, err := checkoutCmd.RunAndReturnTrimmedCombinedOutput(); err != nil {
+	s.logger.Debugf("$ git switch --autostash -C %s origin/%s", branch, branch)
+	switchCmd := s.commandFactory.Create("git", []string{"switch", "--autostash", "-C", branch, "origin/" + branch}, nil)
+	if out, err := switchCmd.RunAndReturnTrimmedCombinedOutput(); err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 
