@@ -13,6 +13,7 @@ type Input struct {
 	GitUsername   string `env:"git_username"`
 	GitToken      string `env:"git_token"`
 	CommitSubject string `env:"commit_subject,required"`
+	DryRun        bool   `env:"dry_run,required"`
 	Verbose       bool   `env:"verbose,required"`
 }
 
@@ -20,6 +21,7 @@ type Result struct {
 	AutofixNeeded bool
 	AutofixPushed bool
 	FileCount     int
+	DryRun        bool
 }
 
 type Step struct {
@@ -104,6 +106,17 @@ func (s Step) Run() (Result, error) {
 
 	if err := s.gitCommit(buildCommitMessage(input.CommitSubject, changedFiles)); err != nil {
 		return Result{AutofixNeeded: true}, fmt.Errorf("git commit: %w", err)
+	}
+
+	if input.DryRun {
+		s.logger.Println()
+		s.logger.Infof("Dry run: skipping git push. The commit was created locally but not pushed.")
+		return Result{
+			AutofixNeeded: true,
+			AutofixPushed: false,
+			FileCount:     len(changedFiles),
+			DryRun:        true,
+		}, nil
 	}
 
 	if err := s.gitPush(input.GitUsername, input.GitToken, gitBranch); err != nil {

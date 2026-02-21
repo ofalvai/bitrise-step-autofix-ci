@@ -55,6 +55,21 @@ inputs:
     summary: Subject line of the autofix commit message. Additional context (changed files, step URL) is automatically appended as the commit body.
     is_required: true
 
+- dry_run: "false"
+  opts:
+    title: Dry run
+    summary: Run the full step logic without pushing to the remote. Useful for testing.
+    description: |
+      When enabled, the step detects changes, runs security checks, and creates a local commit — but skips the `git push`.
+
+      The step exits with success (instead of the usual intentional failure) so the build is not affected.
+
+      Note: `AUTOFIX_PUSHED` will always be `false` in dry run mode.
+    is_required: true
+    value_options:
+    - "true"
+    - "false"
+
 - verbose: "false"
   opts:
     title: Verbose logging

@@ -39,7 +39,7 @@ func run() exitcode.ExitCode {
 		return exitcode.Failure
 	}
 
-	if result.AutofixNeeded {
+	if result.AutofixNeeded && !result.DryRun {
 		// A new build will be triggered by the push; fail this one intentionally
 		// so CI gates don't pass on the unfixed commit.
 		return exitcode.Failure
