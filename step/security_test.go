@@ -1,6 +1,11 @@
 package step
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 func Test_checkForCIConfigChanges(t *testing.T) {
 	tests := []struct {
@@ -63,8 +68,10 @@ func Test_checkForCIConfigChanges(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := checkForCIConfigChanges(tt.changedFiles)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("checkForCIConfigChanges() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

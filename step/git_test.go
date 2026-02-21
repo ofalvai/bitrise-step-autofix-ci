@@ -1,6 +1,10 @@
 package step
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func Test_isGitHubAppPermissionDenied(t *testing.T) {
 	tests := []struct {
@@ -28,10 +32,7 @@ func Test_isGitHubAppPermissionDenied(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isGitHubAppPermissionDenied(tt.output)
-			if got != tt.want {
-				t.Errorf("isGitHubAppPermissionDenied() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, isGitHubAppPermissionDenied(tt.output))
 		})
 	}
 }
@@ -86,16 +87,7 @@ func Test_parseGitStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseGitStatus(tt.output)
-			if len(got) != len(tt.want) {
-				t.Errorf("parseGitStatus() = %v, want %v", got, tt.want)
-				return
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("parseGitStatus()[%d] = %q, want %q", i, got[i], tt.want[i])
-				}
-			}
+			assert.Equal(t, tt.want, parseGitStatus(tt.output))
 		})
 	}
 }

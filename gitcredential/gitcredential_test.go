@@ -3,8 +3,10 @@ package gitcredential
 import (
 	"os"
 	"os/exec"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWriteHelper(t *testing.T) {
@@ -12,49 +14,30 @@ func TestWriteHelper(t *testing.T) {
 	const token = "s3cr3t-t0ken"
 
 	helper, err := WriteHelper(username, token)
-	if err != nil {
-		t.Fatalf("WriteHelper() error = %v", err)
-	}
+	require.NoError(t, err)
 	defer os.Remove(helper.Path)
 
 	// Script file exists and is executable by owner
 	info, err := os.Stat(helper.Path)
-	if err != nil {
-		t.Fatalf("helper script not found: %v", err)
-	}
-	if info.Mode()&0100 == 0 {
-		t.Errorf("helper script is not executable: mode = %v", info.Mode())
-	}
+	require.NoError(t, err, "helper script not found")
+	assert.NotZero(t, info.Mode()&0100, "helper script is not executable")
 
 	// Script must not contain credentials directly — it should reference env vars.
 	// If this fails it means the design regressed back to embedding secrets in the file.
 	content, err := os.ReadFile(helper.Path)
-	if err != nil {
-		t.Fatalf("read helper script: %v", err)
-	}
-	if strings.Contains(string(content), username) {
-		t.Error("helper script contains username directly; expected an env var reference")
-	}
-	if strings.Contains(string(content), token) {
-		t.Error("helper script contains token directly; expected an env var reference")
-	}
+	require.NoError(t, err)
+	assert.NotContains(t, string(content), username, "helper script contains username directly; expected an env var reference")
+	assert.NotContains(t, string(content), token, "helper script contains token directly; expected an env var reference")
 
 	// When executed with the provided env vars the script must output the credentials
 	// in the format git's credential helper protocol expects.
 	cmd := exec.Command(helper.Path)
 	cmd.Env = helper.Env
 	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("execute helper script: %v", err)
-	}
+	require.NoError(t, err, "execute helper script")
 
-	output := string(out)
-	if !strings.Contains(output, "username="+username) {
-		t.Errorf("script output %q missing username=%s", output, username)
-	}
-	if !strings.Contains(output, "password="+token) {
-		t.Errorf("script output %q missing password=%s", output, token)
-	}
+	assert.Contains(t, string(out), "username="+username)
+	assert.Contains(t, string(out), "password="+token)
 }
 
 // TestWriteHelper_tokenOnly covers GitHub App installations, which provide a
@@ -66,23 +49,14 @@ func TestWriteHelper_tokenOnly(t *testing.T) {
 	const token = "ghs_short-lived-app-token"
 
 	helper, err := WriteHelper("", token)
-	if err != nil {
-		t.Fatalf("WriteHelper() error = %v", err)
-	}
+	require.NoError(t, err)
 	defer os.Remove(helper.Path)
 
 	cmd := exec.Command(helper.Path)
 	cmd.Env = helper.Env
 	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("execute helper script: %v", err)
-	}
+	require.NoError(t, err, "execute helper script")
 
-	output := string(out)
-	if !strings.Contains(output, "username="+gitHubAppUsername) {
-		t.Errorf("script output %q missing username=%s fallback", output, gitHubAppUsername)
-	}
-	if !strings.Contains(output, "password="+token) {
-		t.Errorf("script output %q missing password=%s", output, token)
-	}
+	assert.Contains(t, string(out), "username="+gitHubAppUsername)
+	assert.Contains(t, string(out), "password="+token)
 }

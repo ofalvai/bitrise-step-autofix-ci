@@ -1,0 +1,4 @@
+{
+  "go.buildTags": "integrationtests",
+  "go.testTags": "integrationtests"
+}
