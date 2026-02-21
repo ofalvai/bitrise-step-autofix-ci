@@ -54,7 +54,7 @@ func parseGitStatus(output string) []string {
 	return files
 }
 
-func (s Step) gitFetchAndCheckout(branch string) error {
+func (s Step) gitFetchAndCheckout(branch, username, token string) error {
 	// PR builds check out refs/pull/N/merge — a temporary merge commit GitHub
 	// creates for CI. Its parent chain includes base-branch commits, so pushing
 	// HEAD directly to the PR branch would be a non-fast-forward. We fetch and
@@ -72,8 +72,17 @@ func (s Step) gitFetchAndCheckout(branch string) error {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 
+	helper, err := gitcredential.WriteHelper(username, token)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(helper.Path)
+
 	s.logger.Debugf("$ git fetch --depth 1 origin %s", branch)
-	if out, err := s.commandFactory.Create("git", []string{"fetch", "--depth", "1", "origin", branch}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
+	if out, err := s.commandFactory.Create("git", []string{
+		"-c", fmt.Sprintf("credential.helper=%s", helper.Path),
+		"fetch", "--depth", "1", "origin", branch,
+	}, &command.Opts{Env: helper.Env}).RunAndReturnTrimmedCombinedOutput(); err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 

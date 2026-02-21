@@ -3,8 +3,32 @@ package step
 import (
 	"testing"
 
+	"github.com/bitrise-io/go-utils/v2/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func Test_gitFetchAndCheckout_UsesCredentialHelper(t *testing.T) {
+	factory := &fakeCommandFactory{}
+	s := Step{
+		commandFactory: factory,
+		logger:         log.NewLogger(),
+	}
+
+	err := s.gitFetchAndCheckout("main", "myuser", "mytoken")
+	require.NoError(t, err)
+
+	fetchCall, ok := factory.findCall("fetch")
+	require.True(t, ok, "no git fetch command was recorded")
+
+	// The fetch must pass -c credential.helper=<path> so it doesn't rely on
+	// ambient credentials such as the .netrc file written by the git-clone step.
+	assert.NotEmpty(t, credentialHelperArg(fetchCall.args), "credential.helper arg not found in git fetch args: %v", fetchCall.args)
+
+	require.NotNil(t, fetchCall.opts)
+	assert.True(t, envContainsPrefix(fetchCall.opts.Env, "GIT_HELPER_USERNAME="), "GIT_HELPER_USERNAME missing from fetch env")
+	assert.True(t, envContainsPrefix(fetchCall.opts.Env, "GIT_HELPER_TOKEN="), "GIT_HELPER_TOKEN missing from fetch env")
+}
 
 func Test_isGitHubAppPermissionDenied(t *testing.T) {
 	tests := []struct {

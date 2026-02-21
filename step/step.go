@@ -102,7 +102,7 @@ func (s Step) Run() (Result, error) {
 	s.logger.Println()
 	s.logger.Infof("Committing and pushing changes to branch: %s", gitBranch)
 
-	if err := s.gitFetchAndCheckout(gitBranch); err != nil {
+	if err := s.gitFetchAndCheckout(gitBranch, input.GitUsername, input.GitToken); err != nil {
 		return Result{AutofixNeeded: true}, fmt.Errorf("checkout branch: %w", err)
 	}
 

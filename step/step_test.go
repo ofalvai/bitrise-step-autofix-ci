@@ -6,14 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockEnvRepo is a simple map-backed env.Repository for tests.
-type mockEnvRepo map[string]string
-
-func (m mockEnvRepo) Get(key string) string  { return m[key] }
-func (m mockEnvRepo) List() []string         { return nil }
-func (m mockEnvRepo) Set(k, v string) error  { return nil }
-func (m mockEnvRepo) Unset(k string) error   { return nil }
-
 func Test_isPRBuild(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -26,7 +18,7 @@ func Test_isPRBuild(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := Step{envRepo: mockEnvRepo{"BITRISE_PULL_REQUEST": tt.prNumber}}
+			s := Step{envRepo: fakeEnvRepo{"BITRISE_PULL_REQUEST": tt.prNumber}}
 			assert.Equal(t, tt.want, s.isPRBuild())
 		})
 	}
@@ -61,7 +53,7 @@ func Test_isForkPR(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := Step{envRepo: mockEnvRepo{
+			s := Step{envRepo: fakeEnvRepo{
 				"GIT_REPOSITORY_URL":                    tt.repoURL,
 				"BITRISEIO_PULL_REQUEST_REPOSITORY_URL": tt.prRepoURL,
 			}}
