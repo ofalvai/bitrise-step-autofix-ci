@@ -202,11 +202,13 @@ func (s Step) gitFetchAndCheckout(branch string) error {
 	// HEAD directly to the PR branch would be a non-fast-forward. We fetch and
 	// reset to the actual branch tip so our autofix commit lands on top of it.
 	// Uncommitted working-tree changes (the autofix edits) survive the checkout.
+	s.logger.Debugf("$ git fetch --depth 1 origin %s", branch)
 	fetchCmd := s.commandFactory.Create("git", []string{"fetch", "--depth", "1", "origin", branch}, nil)
 	if out, err := fetchCmd.RunAndReturnTrimmedCombinedOutput(); err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 
+	s.logger.Debugf("$ git checkout -B %s origin/%s", branch, branch)
 	checkoutCmd := s.commandFactory.Create("git", []string{"checkout", "-B", branch, "origin/" + branch}, nil)
 	if out, err := checkoutCmd.RunAndReturnTrimmedCombinedOutput(); err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
@@ -216,6 +218,7 @@ func (s Step) gitFetchAndCheckout(branch string) error {
 }
 
 func (s Step) gitAddAll() error {
+	s.logger.Debugf("$ git add --all")
 	cmd := s.commandFactory.Create("git", []string{"add", "--all"}, nil)
 	out, err := cmd.RunAndReturnTrimmedCombinedOutput()
 	if err != nil {
@@ -225,6 +228,7 @@ func (s Step) gitAddAll() error {
 }
 
 func (s Step) gitCommit(message string) error {
+	s.logger.Debugf("$ git commit -m %q", message)
 	cmd := s.commandFactory.Create("git", []string{
 		"-c", fmt.Sprintf("user.name=%s", botName),
 		"-c", fmt.Sprintf("user.email=%s", botEmail),
@@ -235,10 +239,12 @@ func (s Step) gitCommit(message string) error {
 	if err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
+	s.logger.Debugf("%s", out)
 	return nil
 }
 
 func (s Step) gitPush(username, token, branch string) error {
+	s.logger.Debugf("$ git push origin HEAD:%s", branch)
 	helper, err := gitcredential.WriteHelper(username, token)
 	if err != nil {
 		return err
