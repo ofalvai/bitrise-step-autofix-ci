@@ -1,6 +1,7 @@
 package step
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -183,21 +184,25 @@ func (s Step) getChangedFiles() ([]string, error) {
 	// git status --porcelain covers both modified tracked files and new untracked files.
 	// git diff HEAD --name-only would miss untracked files, which are common output from
 	// code generators and formatters that create new files.
-	cmd := s.commandFactory.Create("git", []string{"status", "--porcelain"}, nil)
-	out, err := cmd.RunAndReturnTrimmedCombinedOutput()
-	if err != nil {
+	//
+	// We capture stdout into a buffer instead of using RunAndReturnTrimmedCombinedOutput
+	// because TrimSpace strips the leading space from the first line, which corrupts the
+	// fixed-column porcelain format (e.g. " M file" → "M file", then line[3:] = "ile").
+	var outBuf bytes.Buffer
+	cmd := s.commandFactory.Create("git", []string{"status", "--porcelain"}, &command.Opts{Stdout: &outBuf})
+	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("run git status: %w", err)
 	}
-	return parseGitStatus(out), nil
+	return parseGitStatus(outBuf.String()), nil
 }
 
 // parseGitStatus extracts filenames from `git status --porcelain` output.
 // Each line is "XY filename" where X is the index (staged) status and Y is the
 // worktree status. The filename always starts at position 3.
 //
-// Important: we split before trimming because the status characters themselves
-// can be spaces (e.g. " M file" = unstaged modification), so trimming the full
-// output string would corrupt the fixed-column format.
+// Callers must pass the raw output without TrimSpace: status characters can be
+// spaces (e.g. " M file" = unstaged modification), so stripping leading
+// whitespace from the whole string corrupts the fixed-column format.
 func parseGitStatus(output string) []string {
 	if strings.TrimSpace(output) == "" {
 		return nil
