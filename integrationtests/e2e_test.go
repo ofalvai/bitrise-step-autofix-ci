@@ -96,7 +96,7 @@ func TestCIConfigChange_SecurityError(t *testing.T) {
 
 // TestDetachedHEAD simulates a PR build where Bitrise checks out a temporary
 // merge ref instead of the actual branch tip, leaving the repo in detached HEAD.
-// The step's stash-fetch-checkout-pop dance must handle this correctly.
+// The step must commit on the merge ref and cherry-pick onto the PR branch.
 func TestDetachedHEAD_ChangesDetected(t *testing.T) {
 	repo := setupRepo(t)
 	runGit(t, repo.workdir, "checkout", "--detach", "HEAD")
@@ -196,4 +196,57 @@ func TestLocalMergeCommit_ChangesDetected(t *testing.T) {
 	// The autofix commit must be built on top of the remote feature tip, not the local merge commit.
 	assert.Equal(t, featureTip, runGit(t, repo.workdir, "rev-parse", "HEAD~1"))
 	assert.Equal(t, initialFeatureCount, commitCountOnBranch(t, repo.remoteDir, "feature"), "remote feature should be unchanged")
+}
+
+// TestMergeRefConflict_FormatterAndBaseChangeSameFile covers the case where the
+// base branch and the formatter both modify the same lines of a file. The step
+// cannot automatically resolve this, so it must fail with a clear error.
+//
+// 3-way merge seen by cherry-pick:
+//
+//	base  = merge ref  → "baz"  (base branch changed "bar" → "baz")
+//	ours  = PR tip     → "bar"  (PR branch never touched this line)
+//	theirs = temp commit → "Baz"  (formatter capitalised what it saw in the merge ref)
+//
+// All three versions differ → genuine conflict, no automatic resolution possible.
+func TestMergeRefConflict_FormatterAndBaseChangeSameFile(t *testing.T) {
+	repo := setupRepo(t)
+
+	// Add shared.txt at the branching point so both branches inherit it.
+	writeFile(t, repo.workdir, "shared.txt", "bar\n")
+	runGit(t, repo.workdir, "add", ".")
+	runGit(t, repo.workdir, "commit", "-m", "Add shared.txt")
+	runGit(t, repo.workdir, "push", "origin", "main")
+
+	// Feature branch (the PR branch) — doesn't touch shared.txt.
+	runGit(t, repo.workdir, "checkout", "-b", "feature")
+	writeFile(t, repo.workdir, "feature.txt", "feature work\n")
+	runGit(t, repo.workdir, "add", ".")
+	runGit(t, repo.workdir, "commit", "-m", "Feature commit")
+	runGit(t, repo.workdir, "push", "origin", "feature")
+
+	// Base branch advances after the PR branched off: "bar" → "baz".
+	runGit(t, repo.workdir, "checkout", "main")
+	writeFile(t, repo.workdir, "shared.txt", "baz\n")
+	runGit(t, repo.workdir, "add", ".")
+	runGit(t, repo.workdir, "commit", "-m", "Base branch changes shared.txt")
+	runGit(t, repo.workdir, "push", "origin", "main")
+
+	// Simulate Bitrise's merge ref: local merge commit of feature into main.
+	// HEAD is on main pointing to the merge commit; shared.txt = "baz".
+	runGit(t, repo.workdir, "merge", "--no-ff", "feature", "-m", "Merge ref simulation")
+
+	// Formatter runs on the merge ref: "baz" → "Baz".
+	// On the feature branch tip, shared.txt is still "bar".
+	writeFile(t, repo.workdir, "shared.txt", "Baz\n")
+
+	setCommonEnvs(t, repo)
+	t.Setenv("BITRISE_GIT_BRANCH", "feature")
+
+	result, err := runStep(t, repo.workdir)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "cherry-pick failed")
+	assert.True(t, result.AutofixNeeded)
+	assert.False(t, result.AutofixPushed)
 }

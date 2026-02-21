@@ -57,20 +57,36 @@ func parseGitStatus(output string) []string {
 func (s Step) gitFetchAndCheckout(branch, username, token string) error {
 	// PR builds check out refs/pull/N/merge — a temporary merge commit GitHub
 	// creates for CI. Its parent chain includes base-branch commits, so pushing
-	// HEAD directly to the PR branch would be a non-fast-forward. We fetch and
-	// checkout the actual branch tip so our autofix commit lands on top of it.
+	// HEAD directly to the PR branch would be a non-fast-forward, and the
+	// working tree state includes base-branch changes that should not land in
+	// the autofix commit.
 	//
-	// Some autofix files may also differ between the merge ref and the branch tip
-	// (when the base branch touched the same file), which makes a plain checkout
-	// fail with "your local changes would be overwritten". Stash before checkout
-	// and pop after — git does a 3-way merge on pop so conflicts are very unlikely
-	// in practice (formatters rarely touch the exact same lines as base changes).
-	// This method is only called when changed files have been detected, so the
-	// working tree is guaranteed dirty and the stash will always create an entry.
-	s.logger.Debugf("$ git stash push --include-untracked")
-	if out, err := s.commandFactory.Create("git", []string{"stash", "push", "--include-untracked"}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
+	// We use commit + cherry-pick to isolate only the formatter's changes:
+	// 1. Stage all changes and commit them on the merge ref (temporary commit).
+	// 2. Fetch and switch to the actual PR branch tip.
+	// 3. Cherry-pick the temp commit with --no-commit, which replays only the
+	//    formatter's delta on top of the PR branch via a 3-way merge, leaving
+	//    the working tree staged and ready for the real autofix commit.
+
+	s.logger.Debugf("$ git add --all")
+	if out, err := s.commandFactory.Create("git", []string{"add", "--all"}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
+
+	s.logger.Debugf("$ git commit (temporary, on merge ref)")
+	if out, err := s.commandFactory.Create("git", []string{
+		"-c", fmt.Sprintf("user.name=%s", botName),
+		"-c", fmt.Sprintf("user.email=%s", botEmail),
+		"commit", "--no-verify", "-m", "autofix-temp",
+	}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
+		return fmt.Errorf("%w\n%s", err, out)
+	}
+
+	tempCommit, err := s.commandFactory.Create("git", []string{"rev-parse", "HEAD"}, nil).RunAndReturnTrimmedCombinedOutput()
+	if err != nil {
+		return fmt.Errorf("get temp commit hash: %w", err)
+	}
+	s.logger.Debugf("Temporary commit on merge ref: %s", tempCommit)
 
 	helper, err := gitcredential.WriteHelper(username, token)
 	if err != nil {
@@ -91,21 +107,13 @@ func (s Step) gitFetchAndCheckout(branch, username, token string) error {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 
-	s.logger.Debugf("$ git stash pop")
-	if out, err := s.commandFactory.Create("git", []string{"stash", "pop"}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
-		return fmt.Errorf("%w\n%s", err, out)
+	s.logger.Debugf("$ git cherry-pick --no-commit %s", tempCommit)
+	if out, err := s.commandFactory.Create("git", []string{"cherry-pick", "--no-commit", tempCommit}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
+		// Cherry-pick leaves the repo in an in-progress state on failure; abort to clean up.
+		s.commandFactory.Create("git", []string{"cherry-pick", "--abort"}, nil).RunAndReturnTrimmedCombinedOutput() //nolint:errcheck
+		return fmt.Errorf("cherry-pick failed (changes conflict with base branch changes): %w\n%s", err, out)
 	}
 
-	return nil
-}
-
-func (s Step) gitAddAll() error {
-	s.logger.Debugf("$ git add --all")
-	cmd := s.commandFactory.Create("git", []string{"add", "--all"}, nil)
-	out, err := cmd.RunAndReturnTrimmedCombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%w\n%s", err, out)
-	}
 	return nil
 }
 

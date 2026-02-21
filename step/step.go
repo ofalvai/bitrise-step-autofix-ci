@@ -106,10 +106,7 @@ func (s Step) Run() (Result, error) {
 		return Result{AutofixNeeded: true}, fmt.Errorf("checkout branch: %w", err)
 	}
 
-	if err := s.gitAddAll(); err != nil {
-		return Result{AutofixNeeded: true}, fmt.Errorf("git add: %w", err)
-	}
-
+	// gitFetchAndCheckout already staged the changes via cherry-pick --no-commit.
 	if err := s.gitCommit(buildCommitMessage(input.CommitSubject, changedFiles)); err != nil {
 		return Result{AutofixNeeded: true}, fmt.Errorf("git commit: %w", err)
 	}
