@@ -14,6 +14,24 @@ func (m mockEnvRepo) List() []string         { return nil }
 func (m mockEnvRepo) Set(k, v string) error  { return nil }
 func (m mockEnvRepo) Unset(k string) error   { return nil }
 
+func Test_isPRBuild(t *testing.T) {
+	tests := []struct {
+		name     string
+		prNumber string
+		want     bool
+	}{
+		{name: "not a PR build", prNumber: "", want: false},
+		{name: "PR build", prNumber: "123", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := Step{envRepo: mockEnvRepo{"BITRISE_PULL_REQUEST": tt.prNumber}}
+			assert.Equal(t, tt.want, s.isPRBuild())
+		})
+	}
+}
+
 func Test_isForkPR(t *testing.T) {
 	tests := []struct {
 		name      string

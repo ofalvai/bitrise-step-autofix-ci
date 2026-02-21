@@ -62,6 +62,12 @@ func (s Step) Run() (Result, error) {
 
 	gitBranch := s.envRepo.Get("BITRISE_GIT_BRANCH")
 
+	if !s.isPRBuild() {
+		s.logger.Println()
+		s.logger.Infof("Skipping: this step is intended for PR builds only (BITRISE_PULL_REQUEST is not set).")
+		return Result{}, nil
+	}
+
 	if s.isForkPR() {
 		s.logger.Println()
 		s.logger.Infof("Skipping: this build is for a fork PR. Autofix cannot push to a forked repository.")
@@ -131,6 +137,10 @@ func (s Step) Run() (Result, error) {
 		AutofixPushed: true,
 		FileCount:     len(changedFiles),
 	}, nil
+}
+
+func (s Step) isPRBuild() bool {
+	return s.envRepo.Get("BITRISE_PULL_REQUEST") != ""
 }
 
 // isForkPR returns true when the PR comes from a fork (different repo URL).

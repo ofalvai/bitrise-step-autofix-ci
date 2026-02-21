@@ -53,6 +53,19 @@ func TestRealPush_ChangesDetected(t *testing.T) {
 	assert.Equal(t, initialCount+1, commitCount(t, repo.remoteDir))
 }
 
+func TestNonPRBuild_Skipped(t *testing.T) {
+	repo := setupRepo(t)
+	writeFile(t, repo.workdir, "generated.txt", "new content")
+	setCommonEnvs(t, repo)
+	t.Setenv("BITRISE_PULL_REQUEST", "") // override: not a PR build
+
+	result, err := runStep(t, repo.workdir)
+
+	require.NoError(t, err)
+	assert.False(t, result.AutofixNeeded)
+	assert.False(t, result.AutofixPushed)
+}
+
 func TestForkPR_Skipped(t *testing.T) {
 	repo := setupRepo(t)
 	writeFile(t, repo.workdir, "generated.txt", "new content")
@@ -103,8 +116,8 @@ func TestDetachedHEAD_ChangesDetected(t *testing.T) {
 	assert.Equal(t, initialCount, commitCount(t, repo.remoteDir), "remote should be unchanged")
 }
 
-// TestShallowBranch simulates a non-PR build where Bitrise does a shallow clone
-// and leaves HEAD on the branch (the most common push-to-branch CI configuration).
+// TestShallowBranch simulates a PR build where Bitrise does a shallow clone
+// and leaves HEAD on the branch tip rather than a detached merge ref.
 func TestShallowBranch_ChangesDetected(t *testing.T) {
 	repo := setupShallowRepo(t)
 	writeFile(t, repo.workdir, "generated.txt", "new content")

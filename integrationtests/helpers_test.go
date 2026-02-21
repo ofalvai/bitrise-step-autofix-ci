@@ -95,6 +95,7 @@ func setCommonEnvs(t *testing.T, r gitRepo) {
 	t.Setenv("dry_run", "false")
 	t.Setenv("verbose", "false")
 	t.Setenv("BITRISE_GIT_BRANCH", "main")
+	t.Setenv("BITRISE_PULL_REQUEST", "123")
 	t.Setenv("GIT_REPOSITORY_URL", "file://"+r.remoteDir)
 }
 
