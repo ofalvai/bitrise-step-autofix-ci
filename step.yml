@@ -10,8 +10,15 @@ description: |
   1. Detects changed files via `git diff HEAD`
   2. Aborts if any changed file is a Bitrise CI config (`bitrise.yml`, `bitrise.yaml`, `.bitrise/**`) to prevent privilege escalation
   3. Commits all changes using a bot identity (`Bitrise Autofix`)
-  4. Pushes to the source branch using the Bitrise-provided git credentials
+  4. Pushes to the source branch (see **Authentication** below)
   5. Exits with failure so CI gates don't pass on the unfixed commit
+
+  #### Authentication
+
+  The step supports both HTTPS and SSH remotes — whichever the preceding Git Clone step configured.
+
+  - **HTTPS**: The step uses the `git_token` (and optionally `git_username`) inputs to authenticate the push via git's credential helper protocol. Credentials are passed to the `git push` subprocess through environment variables and never written to disk or embedded in the remote URL.
+  - **SSH**: If the repository was cloned over SSH and an SSH key is already loaded in the agent, the push uses SSH automatically. The `git_token` and `git_username` inputs are ignored for SSH remotes.
 
   #### Fork PRs
 
@@ -40,13 +47,13 @@ inputs:
 - git_username: $GIT_HTTP_USERNAME
   opts:
     title: Git username
-    summary: Username for authenticating the git push. Defaults to the Bitrise-provided HTTP username.
+    summary: Username for HTTPS git push authentication. Defaults to the Bitrise-provided HTTP username. Not used for SSH remotes.
     is_sensitive: true
 
 - git_token: $GIT_HTTP_PASSWORD
   opts:
     title: Git token
-    summary: Token or password for authenticating the git push. Defaults to the Bitrise-provided HTTP password.
+    summary: Token or password for HTTPS git push authentication. Defaults to the Bitrise-provided HTTP password. Not used for SSH remotes.
     is_sensitive: true
 
 - commit_subject: "Bitrise CI Autofix"
