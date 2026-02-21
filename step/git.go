@@ -16,7 +16,7 @@ const (
 	botEmail = "autofix@bitrise.io"
 )
 
-func (s Step) getChangedFiles() ([]string, error) {
+func (s Step) getChangedFiles(includeUntracked bool) ([]string, error) {
 	// git status --porcelain covers both modified tracked files and new untracked files.
 	// git diff HEAD --name-only would miss untracked files, which are common output from
 	// code generators and formatters that create new files.
@@ -29,7 +29,7 @@ func (s Step) getChangedFiles() ([]string, error) {
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("run git status: %w", err)
 	}
-	return parseGitStatus(outBuf.String()), nil
+	return parseGitStatus(outBuf.String(), includeUntracked), nil
 }
 
 // parseGitStatus extracts filenames from `git status --porcelain` output.
@@ -39,7 +39,7 @@ func (s Step) getChangedFiles() ([]string, error) {
 // Callers must pass the raw output without TrimSpace: status characters can be
 // spaces (e.g. " M file" = unstaged modification), so stripping leading
 // whitespace from the whole string corrupts the fixed-column format.
-func parseGitStatus(output string) []string {
+func parseGitStatus(output string, includeUntracked bool) []string {
 	if strings.TrimSpace(output) == "" {
 		return nil
 	}
@@ -47,6 +47,10 @@ func parseGitStatus(output string) []string {
 	for _, line := range strings.Split(output, "\n") {
 		// Minimum valid line: "XY f" = 4 chars (2 status + space + 1 char filename)
 		if len(line) < 4 {
+			continue
+		}
+		// Untracked files are marked with "??" in porcelain format.
+		if !includeUntracked && strings.HasPrefix(line, "??") {
 			continue
 		}
 		files = append(files, line[3:])

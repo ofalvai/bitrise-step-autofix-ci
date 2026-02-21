@@ -7,7 +7,7 @@ description: |
 
   #### How it works
 
-  1. Detects changed files via `git diff HEAD`
+  1. Detects changed files via `git status` (including untracked files by default)
   2. Aborts if any changed file is a Bitrise CI config (`bitrise.yml`, `bitrise.yaml`, `.bitrise/**`) to prevent privilege escalation
   3. Commits all changes using a bot identity (`Bitrise Autofix`)
   4. Pushes to the source branch (see **Authentication** below)
@@ -44,6 +44,18 @@ inputs:
       title: Commit subject
       summary: Subject line of the autofix commit message. Additional context (changed files, step URL) is automatically appended as the commit body.
       is_required: true
+  - include_untracked: "true"
+    opts:
+      title: Include untracked files
+      summary: Whether to include untracked (new, not yet tracked by git) files in the autofix commit.
+      description: |
+        When enabled (default), new files that are not yet tracked by git are included in the autofix commit. This is the right behavior for most cases, such as code generators and formatters that create new files.
+
+        When disabled, only modifications to already-tracked files are committed. Useful when the previous steps may create temporary or build output files that should not be committed.
+      is_required: true
+      value_options:
+        - "true"
+        - "false"
   - git_username: $GIT_HTTP_USERNAME
     opts:
       title: Git username

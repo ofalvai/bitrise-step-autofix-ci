@@ -10,11 +10,12 @@ import (
 )
 
 type Input struct {
-	GitUsername   string `env:"git_username"`
-	GitToken      string `env:"git_token"`
-	CommitSubject string `env:"commit_subject,required"`
-	DryRun        bool   `env:"dry_run,required"`
-	Verbose       bool   `env:"verbose,required"`
+	GitUsername      string `env:"git_username"`
+	GitToken         string `env:"git_token"`
+	CommitSubject    string `env:"commit_subject,required"`
+	IncludeUntracked bool   `env:"include_untracked,required"`
+	DryRun           bool   `env:"dry_run,required"`
+	Verbose          bool   `env:"verbose,required"`
 }
 
 type Result struct {
@@ -74,14 +75,18 @@ func (s Step) Run() (Result, error) {
 		return Result{}, nil
 	}
 
-	changedFiles, err := s.getChangedFiles()
+	changedFiles, err := s.getChangedFiles(input.IncludeUntracked)
 	if err != nil {
 		return Result{}, fmt.Errorf("detect changes: %w", err)
 	}
 
 	if len(changedFiles) == 0 {
 		s.logger.Println()
-		s.logger.Infof("No changes detected, nothing to commit.")
+		if !input.IncludeUntracked {
+			s.logger.Infof("No changes detected, nothing to commit. (untracked files are not included, see the include_untracked input)")
+		} else {
+			s.logger.Infof("No changes detected, nothing to commit.")
+		}
 		return Result{}, nil
 	}
 

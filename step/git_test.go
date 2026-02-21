@@ -63,55 +63,76 @@ func Test_isGitHubAppPermissionDenied(t *testing.T) {
 
 func Test_parseGitStatus(t *testing.T) {
 	tests := []struct {
-		name   string
-		output string
-		want   []string
+		name             string
+		output           string
+		includeUntracked bool
+		want             []string
 	}{
 		{
-			name:   "empty output means no changes",
-			output: "",
-			want:   nil,
+			name:             "empty output means no changes",
+			output:           "",
+			includeUntracked: true,
+			want:             nil,
 		},
 		{
-			name:   "whitespace-only output means no changes",
-			output: "   \n  ",
-			want:   nil,
+			name:             "whitespace-only output means no changes",
+			output:           "   \n  ",
+			includeUntracked: true,
+			want:             nil,
 		},
 		{
-			name:   "modified tracked file",
-			output: " M main.go",
-			want:   []string{"main.go"},
+			name:             "modified tracked file",
+			output:           " M main.go",
+			includeUntracked: true,
+			want:             []string{"main.go"},
 		},
 		{
-			name:   "staged modification",
-			output: "M  main.go",
-			want:   []string{"main.go"},
+			name:             "staged modification",
+			output:           "M  main.go",
+			includeUntracked: true,
+			want:             []string{"main.go"},
 		},
 		{
-			name:   "untracked new file",
-			output: "?? newfile.go",
-			want:   []string{"newfile.go"},
+			name:             "untracked new file included",
+			output:           "?? newfile.go",
+			includeUntracked: true,
+			want:             []string{"newfile.go"},
 		},
 		{
-			name:   "mix of tracked changes and untracked files",
-			output: " M existing.go\n?? generated.go\nA  staged-new.go",
-			want:   []string{"existing.go", "generated.go", "staged-new.go"},
+			name:             "untracked new file excluded",
+			output:           "?? newfile.go",
+			includeUntracked: false,
+			want:             nil,
 		},
 		{
-			name:   "deleted file",
-			output: " D removed.go",
-			want:   []string{"removed.go"},
+			name:             "mix of tracked changes and untracked files, all included",
+			output:           " M existing.go\n?? generated.go\nA  staged-new.go",
+			includeUntracked: true,
+			want:             []string{"existing.go", "generated.go", "staged-new.go"},
 		},
 		{
-			name:   "file with spaces in name",
-			output: " M my file.go",
-			want:   []string{"my file.go"},
+			name:             "mix of tracked changes and untracked files, untracked excluded",
+			output:           " M existing.go\n?? generated.go\nA  staged-new.go",
+			includeUntracked: false,
+			want:             []string{"existing.go", "staged-new.go"},
+		},
+		{
+			name:             "deleted file",
+			output:           " D removed.go",
+			includeUntracked: true,
+			want:             []string{"removed.go"},
+		},
+		{
+			name:             "file with spaces in name",
+			output:           " M my file.go",
+			includeUntracked: true,
+			want:             []string{"my file.go"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, parseGitStatus(tt.output))
+			assert.Equal(t, tt.want, parseGitStatus(tt.output, tt.includeUntracked))
 		})
 	}
 }
