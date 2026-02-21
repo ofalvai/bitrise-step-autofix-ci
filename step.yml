@@ -33,7 +33,8 @@ website: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
 source_code_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
 support_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci/issues
 type_tags:
-  - utility
+- utility
+
 run_if: .IsCI
 toolkit:
   go:
