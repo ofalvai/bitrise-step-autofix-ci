@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	botName  = "Bitrise Autofix"
-	botEmail = "autofix@bitrise.io"
+	botName     = "Bitrise Autofix"
+	botEmail    = "autofix@bitrise.io"
+	stepRepoURL = "https://github.com/bitrise-steplib/bitrise-step-autofix-ci"
 )
 
 type Input struct {
@@ -115,7 +116,7 @@ func (s Step) Run() (Result, error) {
 		return Result{AutofixNeeded: true}, fmt.Errorf("git add: %w", err)
 	}
 
-	if err := s.gitCommit(input.CommitMessage); err != nil {
+	if err := s.gitCommit(buildCommitMessage(input.CommitMessage, changedFiles)); err != nil {
 		return Result{AutofixNeeded: true}, fmt.Errorf("git commit: %w", err)
 	}
 
@@ -161,6 +162,22 @@ func checkForCIConfigChanges(changedFiles []string) error {
 	return nil
 }
 
+func buildCommitMessage(subject string, changedFiles []string) string {
+	var sb strings.Builder
+	sb.WriteString(subject)
+	sb.WriteString("\n\nPrevious steps in this CI workflow created uncommitted file changes\n")
+	sb.WriteString("(e.g. a code formatter, linter, or code generator). This commit\n")
+	sb.WriteString("captures those changes.\n")
+	sb.WriteString("\n")
+	sb.WriteString(stepRepoURL)
+	sb.WriteString("\n\nModified files:\n")
+	for _, f := range changedFiles {
+		sb.WriteString("- ")
+		sb.WriteString(f)
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
 
 func (s Step) getChangedFiles() ([]string, error) {
 	// git status --porcelain covers both modified tracked files and new untracked files.

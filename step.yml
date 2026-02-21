@@ -52,7 +52,7 @@ inputs:
 - commit_message: "Bitrise CI Autofix"
   opts:
     title: Commit message
-    summary: Message to use for the autofix commit.
+    summary: First line of the autofix commit message.
     is_required: true
 
 - verbose: "false"
