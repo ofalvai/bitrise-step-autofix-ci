@@ -49,10 +49,10 @@ inputs:
     summary: Token or password for authenticating the git push. Defaults to the Bitrise-provided HTTP password.
     is_sensitive: true
 
-- commit_message: "Bitrise CI Autofix"
+- commit_subject: "Bitrise CI Autofix"
   opts:
-    title: Commit message
-    summary: First line of the autofix commit message.
+    title: Commit subject
+    summary: Subject line of the autofix commit message. Additional context (changed files, step URL) is automatically appended as the commit body.
     is_required: true
 
 - verbose: "false"
