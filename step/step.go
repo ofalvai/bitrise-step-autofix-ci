@@ -217,20 +217,32 @@ func (s Step) gitFetchAndCheckout(branch string) error {
 	// PR builds check out refs/pull/N/merge — a temporary merge commit GitHub
 	// creates for CI. Its parent chain includes base-branch commits, so pushing
 	// HEAD directly to the PR branch would be a non-fast-forward. We fetch and
-	// switch to the actual branch tip so our autofix commit lands on top of it.
+	// checkout the actual branch tip so our autofix commit lands on top of it.
 	//
-	// --autostash handles the case where an autofix file also differs between the
-	// merge ref and the branch tip (base branch touched the same file): git switch
-	// would otherwise refuse with "your local changes would be overwritten".
-	s.logger.Debugf("$ git fetch --depth 1 origin %s", branch)
-	fetchCmd := s.commandFactory.Create("git", []string{"fetch", "--depth", "1", "origin", branch}, nil)
-	if out, err := fetchCmd.RunAndReturnTrimmedCombinedOutput(); err != nil {
+	// Some autofix files may also differ between the merge ref and the branch tip
+	// (when the base branch touched the same file), which makes a plain checkout
+	// fail with "your local changes would be overwritten". Stash before checkout
+	// and pop after — git does a 3-way merge on pop so conflicts are very unlikely
+	// in practice (formatters rarely touch the exact same lines as base changes).
+	// This method is only called when changed files have been detected, so the
+	// working tree is guaranteed dirty and the stash will always create an entry.
+	s.logger.Debugf("$ git stash push --include-untracked")
+	if out, err := s.commandFactory.Create("git", []string{"stash", "push", "--include-untracked"}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 
-	s.logger.Debugf("$ git switch --autostash -C %s origin/%s", branch, branch)
-	switchCmd := s.commandFactory.Create("git", []string{"switch", "--autostash", "-C", branch, "origin/" + branch}, nil)
-	if out, err := switchCmd.RunAndReturnTrimmedCombinedOutput(); err != nil {
+	s.logger.Debugf("$ git fetch --depth 1 origin %s", branch)
+	if out, err := s.commandFactory.Create("git", []string{"fetch", "--depth", "1", "origin", branch}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
+		return fmt.Errorf("%w\n%s", err, out)
+	}
+
+	s.logger.Debugf("$ git checkout -B %s origin/%s", branch, branch)
+	if out, err := s.commandFactory.Create("git", []string{"checkout", "-B", branch, "origin/" + branch}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
+		return fmt.Errorf("%w\n%s", err, out)
+	}
+
+	s.logger.Debugf("$ git stash pop")
+	if out, err := s.commandFactory.Create("git", []string{"stash", "pop"}, nil).RunAndReturnTrimmedCombinedOutput(); err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 
