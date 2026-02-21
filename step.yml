@@ -29,75 +29,63 @@ description: |
   - `AUTOFIX_NEEDED`: `true` if uncommitted changes were detected
   - `AUTOFIX_PUSHED`: `true` if the autofix commit was pushed successfully
   - `AUTOFIX_FILE_COUNT`: number of files included in the autofix commit
-
 website: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
 source_code_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
 support_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci/issues
-
 type_tags:
-- utility
-
+  - utility
 run_if: .IsCI
-
 toolkit:
   go:
     package_name: github.com/bitrise-steplib/bitrise-step-autofix-ci
-
 inputs:
-- git_username: $GIT_HTTP_USERNAME
-  opts:
-    title: Git username
-    summary: Username for HTTPS git push authentication. Defaults to the Bitrise-provided HTTP username. Not used for SSH remotes.
-    is_sensitive: true
+  - git_username: $GIT_HTTP_USERNAME
+    opts:
+      title: Git username
+      summary: Username for HTTPS git push authentication. Defaults to the Bitrise-provided HTTP username. Not used for SSH remotes.
+      is_sensitive: true
+  - git_token: $GIT_HTTP_PASSWORD
+    opts:
+      title: Git token
+      summary: Token or password for HTTPS git push authentication. Defaults to the Bitrise-provided HTTP password. Not used for SSH remotes.
+      is_sensitive: true
+  - commit_subject: "Bitrise CI Autofix"
+    opts:
+      title: Commit subject
+      summary: Subject line of the autofix commit message. Additional context (changed files, step URL) is automatically appended as the commit body.
+      is_required: true
+  - dry_run: "false"
+    opts:
+      title: Dry run
+      summary: Run the full step logic without pushing to the remote. Useful for testing.
+      description: |
+        When enabled, the step detects changes, runs security checks, and creates a local commit — but skips the `git push`.
 
-- git_token: $GIT_HTTP_PASSWORD
-  opts:
-    title: Git token
-    summary: Token or password for HTTPS git push authentication. Defaults to the Bitrise-provided HTTP password. Not used for SSH remotes.
-    is_sensitive: true
+        The step exits with success (instead of the usual intentional failure) so the build is not affected.
 
-- commit_subject: "Bitrise CI Autofix"
-  opts:
-    title: Commit subject
-    summary: Subject line of the autofix commit message. Additional context (changed files, step URL) is automatically appended as the commit body.
-    is_required: true
-
-- dry_run: "false"
-  opts:
-    title: Dry run
-    summary: Run the full step logic without pushing to the remote. Useful for testing.
-    description: |
-      When enabled, the step detects changes, runs security checks, and creates a local commit — but skips the `git push`.
-
-      The step exits with success (instead of the usual intentional failure) so the build is not affected.
-
-      Note: `AUTOFIX_PUSHED` will always be `false` in dry run mode.
-    is_required: true
-    value_options:
-    - "true"
-    - "false"
-
-- verbose: "false"
-  opts:
-    title: Verbose logging
-    summary: Enable logging additional information for troubleshooting.
-    is_required: true
-    value_options:
-    - "true"
-    - "false"
-
+        Note: `AUTOFIX_PUSHED` will always be `false` in dry run mode.
+      is_required: true
+      value_options:
+        - "true"
+        - "false"
+  - verbose: "false"
+    opts:
+      title: Verbose logging
+      summary: Enable logging additional information for troubleshooting.
+      is_required: true
+      value_options:
+        - "true"
+        - "false"
 outputs:
-- AUTOFIX_NEEDED:
-  opts:
-    title: Autofix needed
-    summary: Whether uncommitted changes were detected. `true` or `false`.
-
-- AUTOFIX_PUSHED:
-  opts:
-    title: Autofix pushed
-    summary: Whether the autofix commit was successfully pushed. `true` or `false`.
-
-- AUTOFIX_FILE_COUNT:
-  opts:
-    title: Autofix file count
-    summary: Number of files included in the autofix commit.
+  - AUTOFIX_NEEDED:
+    opts:
+      title: Autofix needed
+      summary: Whether uncommitted changes were detected. `true` or `false`.
+  - AUTOFIX_PUSHED:
+    opts:
+      title: Autofix pushed
+      summary: Whether the autofix commit was successfully pushed. `true` or `false`.
+  - AUTOFIX_FILE_COUNT:
+    opts:
+      title: Autofix file count
+      summary: Number of files included in the autofix commit.
