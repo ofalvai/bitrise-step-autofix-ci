@@ -1,8 +1,5 @@
 title: Autofix CI
 summary: Commits and pushes any local file changes made by previous steps, then fails the build to trigger a fresh run.
-
-
-
 description: |
   Autofix CI detects uncommitted file changes left by previous steps (e.g. code formatters, linters with auto-fix, code generators) and automatically commits and pushes them back to the source branch.
 
@@ -36,10 +33,10 @@ website: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
 source_code_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
 support_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci/issues
 type_tags:
-- utility
+  - utility
 run_if: .IsCI
 toolkit:
-  go:  
+  go:
     package_name: github.com/bitrise-steplib/bitrise-step-autofix-ci
 inputs:
   - commit_subject: "Bitrise CI Autofix"
