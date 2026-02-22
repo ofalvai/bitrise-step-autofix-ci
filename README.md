@@ -4,6 +4,8 @@ Commits and pushes any local file changes made by previous steps, then fails the
 
 Inspired by [autofix.ci](https://autofix.ci/) for GitHub Actions.
 
+![Demo screenshot](./docs/demo.png)
+
 ## Overview
 
 Many CI workflows run tools that modify files as a side effect: code formatters, linters with auto-fix, code generators, lockfile updaters, and so on. Normally these changes are lost when the build finishes, requiring a developer to run the tool locally, commit the result, and push again.
