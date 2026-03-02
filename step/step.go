@@ -148,10 +148,10 @@ func (s Step) isPRBuild() bool {
 // isForkPR returns true when the PR comes from a fork (different repo URL).
 // An empty PR repo URL means this is not a PR build at all.
 func (s Step) isForkPR() bool {
-	repoURL := s.envRepo.Get("GIT_REPOSITORY_URL")
+	baseRepoURL := s.envRepo.Get("BITRISEIO_BASE_REPOSITORY_URL")
 	prRepoURL := s.envRepo.Get("BITRISEIO_PULL_REQUEST_REPOSITORY_URL")
 	if prRepoURL == "" {
 		return false
 	}
-	return repoURL != prRepoURL
+	return baseRepoURL != prRepoURL
 }
