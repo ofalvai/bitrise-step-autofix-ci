@@ -54,11 +54,25 @@ func (s Step) Run() (Result, error) {
 	stepconf.Print(input)
 	s.logger.EnableDebugLog(input.Verbose)
 
+	remoteURL, err := s.getRemoteURL()
+	if err != nil {
+		return Result{}, fmt.Errorf("detect remote URL: %w", err)
+	}
+
+	s.logger.Println()
+	useSSH := isSSHRemote(remoteURL)
+	if useSSH {
+		s.logger.Infof("Using SSH authentication (because of remote URL: %s)", remoteURL)
+	} else {
+		s.logger.Infof("Using HTTPS authentication (because of remote URL: %s)", remoteURL)
+	}
+	s.logger.Println()
+
 	// The step.yml defaults expand $GIT_HTTP_USERNAME/$GIT_HTTP_PASSWORD before the binary runs,
 	// so these are already resolved by the time we get here.
 	// Username is optional: GitHub App installations provide only a short-lived token.
-	if input.GitToken == "" {
-		return Result{}, fmt.Errorf("git token is required: set git_token input or ensure GIT_HTTP_PASSWORD is available in the environment")
+	if !useSSH && input.GitToken == "" {
+		return Result{}, fmt.Errorf("git token is required for authentication: set git_token input or ensure $GIT_HTTP_PASSWORD is available in the environment")
 	}
 
 	gitBranch := s.envRepo.Get("BITRISE_GIT_BRANCH")

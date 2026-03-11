@@ -21,11 +21,19 @@ type capturedCall struct {
 }
 
 type fakeCommandFactory struct {
-	calls []capturedCall
+	calls     []capturedCall
+	responses map[string]string // maps git arg keyword to output returned by RunAndReturnTrimmedCombinedOutput
 }
 
 func (f *fakeCommandFactory) Create(name string, args []string, opts *command.Opts) command.Command {
 	f.calls = append(f.calls, capturedCall{name, args, opts})
+	if f.responses != nil {
+		for _, arg := range args {
+			if resp, ok := f.responses[arg]; ok {
+				return &noopCommand{output: resp}
+			}
+		}
+	}
 	return &noopCommand{}
 }
 
@@ -41,15 +49,17 @@ func (f *fakeCommandFactory) findCall(gitSubcmd string) (capturedCall, bool) {
 	return capturedCall{}, false
 }
 
-type noopCommand struct{}
+type noopCommand struct {
+	output string
+}
 
 func (c *noopCommand) PrintableCommandArgs() string                       { return "" }
 func (c *noopCommand) Run() error                                         { return nil }
 func (c *noopCommand) RunAndReturnExitCode() (int, error)                 { return 0, nil }
-func (c *noopCommand) RunAndReturnTrimmedOutput() (string, error)         { return "", nil }
-func (c *noopCommand) RunAndReturnTrimmedCombinedOutput() (string, error) { return "", nil }
-func (c *noopCommand) Start() error                                        { return nil }
-func (c *noopCommand) Wait() error                                         { return nil }
+func (c *noopCommand) RunAndReturnTrimmedOutput() (string, error)         { return c.output, nil }
+func (c *noopCommand) RunAndReturnTrimmedCombinedOutput() (string, error) { return c.output, nil }
+func (c *noopCommand) Start() error                                       { return nil }
+func (c *noopCommand) Wait() error                                        { return nil }
 
 // credentialHelperArg returns the value of the first "-c credential.helper=..." pair
 // found in args, or empty string if none is present.

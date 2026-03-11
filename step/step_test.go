@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_isPRBuild(t *testing.T) {
@@ -22,6 +23,19 @@ func Test_isPRBuild(t *testing.T) {
 			assert.Equal(t, tt.want, s.isPRBuild())
 		})
 	}
+}
+
+func Test_getRemoteURL(t *testing.T) {
+	factory := &fakeCommandFactory{
+		responses: map[string]string{
+			"get-url": "git@github.com:org/repo.git",
+		},
+	}
+	s := Step{commandFactory: factory}
+
+	url, err := s.getRemoteURL()
+	require.NoError(t, err)
+	assert.Equal(t, "git@github.com:org/repo.git", url)
 }
 
 func Test_isForkPR(t *testing.T) {
