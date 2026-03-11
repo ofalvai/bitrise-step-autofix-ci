@@ -68,6 +68,17 @@ inputs:
       summary: Token or password for HTTPS git push authentication. Defaults to the Bitrise-provided HTTP password. Not used for SSH remotes.
       category: Authentication
       is_sensitive: true
+  - git_remote_url: $BITRISEIO_BASE_REPOSITORY_URL
+    opts:
+      title: Git remote URL
+      summary: Override the git remote URL used for push authentication. Useful when switching from SSH to HTTPS auth.
+      description: |
+        When set, the step updates the `origin` remote to this URL before fetching and pushing. This allows overriding an SSH remote (set by the Git Clone step) with an HTTPS URL so that token-based authentication works.
+
+        Defaults to `$BITRISEIO_BASE_REPOSITORY_URL`, the HTTPS URL of the base repository provided by Bitrise. Leave empty to use the remote URL already configured in the local git repository.
+
+        **SSH vs HTTPS:** SSH deploy keys are typically read-only, so a push over SSH will fail with a permission error. Switching to HTTPS with a `git_token` is usually the right fix: keep this input at its default HTTPS value and set `git_token` to a token with write access.
+      category: Authentication
   - dry_run: "false"
     opts:
       title: Dry run

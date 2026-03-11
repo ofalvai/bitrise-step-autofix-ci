@@ -12,6 +12,7 @@ import (
 type Input struct {
 	GitUsername      string `env:"git_username"`
 	GitToken         string `env:"git_token"`
+	GitRemoteURL     string `env:"git_remote_url"`
 	CommitSubject    string `env:"commit_subject,required"`
 	IncludeUntracked bool   `env:"include_untracked,required"`
 	DryRun           bool   `env:"dry_run,required"`
@@ -54,6 +55,12 @@ func (s Step) Run() (Result, error) {
 	stepconf.Print(input)
 	s.logger.EnableDebugLog(input.Verbose)
 
+	if input.GitRemoteURL != "" {
+		if err := s.setRemoteURL(input.GitRemoteURL); err != nil {
+			return Result{}, fmt.Errorf("set remote URL: %w", err)
+		}
+	}
+
 	remoteURL, err := s.getRemoteURL()
 	if err != nil {
 		return Result{}, fmt.Errorf("detect remote URL: %w", err)
@@ -63,6 +70,8 @@ func (s Step) Run() (Result, error) {
 	useSSH := isSSHRemote(remoteURL)
 	if useSSH {
 		s.logger.Infof("Using SSH authentication (because of remote URL: %s)", remoteURL)
+		s.logger.Warnf("Warning: SSH keys usually only have read-only access to the repo. This use-case requires write access as well, so the push may fail.")
+		s.logger.Warnf("Consider switching to HTTPS authentication with a read-write token. To do so, set the git_token and git_remote_url inputs of this step and ensure the remote URL is an HTTPS one")
 	} else {
 		s.logger.Infof("Using HTTPS authentication (because of remote URL: %s)", remoteURL)
 	}

@@ -46,7 +46,9 @@ The step supports both HTTPS and SSH remotes, matching however the preceding Git
 
 **HTTPS:** Supply a `git_token` (and optionally a `git_username`). Bitrise provides these automatically via `GIT_HTTP_PASSWORD` and `GIT_HTTP_USERNAME`, so the defaults work out of the box. Credentials are passed to `git push` through git's credential helper protocol — they are never written to disk or embedded in the remote URL.
 
-**SSH:** If the repository was cloned over SSH and an SSH key is already loaded in the agent, the push uses SSH automatically. The `git_token` and `git_username` inputs are ignored.
+**SSH:** If the repository was cloned over SSH and an SSH key is already loaded in the agent, the push uses SSH automatically. The `git_token` and `git_username` inputs are ignored. Note that SSH deploy keys are typically read-only — if the push fails with a permission error, switch to HTTPS authentication (see below).
+
+**Switching from SSH to HTTPS:** If your Git Clone step uses SSH but you want to authenticate pushes with a token, set `git_remote_url` to an HTTPS URL (e.g. `$BITRISEIO_BASE_REPOSITORY_URL`, which is the default) and provide a `git_token`. The step will rewrite the `origin` remote to the HTTPS URL before pushing.
 
 ## Security
 
@@ -79,6 +81,17 @@ Username for HTTPS git push authentication. Bitrise populates `GIT_HTTP_USERNAME
 **Sensitive**
 
 Token or password for HTTPS git push authentication. Bitrise populates `GIT_HTTP_PASSWORD` automatically, so the default works without any configuration. Not used for SSH remotes.
+
+---
+
+### `git_remote_url`
+
+**Default:** `$BITRISEIO_BASE_REPOSITORY_URL`
+**Category:** Authentication
+
+Overrides the `origin` remote URL before fetching and pushing. Leave empty to use whatever URL the preceding Git Clone step configured.
+
+The main use case is switching from SSH to HTTPS authentication: if Git Clone used an SSH remote, set this input to the HTTPS URL of the repository (the default `$BITRISEIO_BASE_REPOSITORY_URL` is usually correct) and provide a `git_token`. The step rewrites the remote to HTTPS so that token-based authentication works.
 
 ---
 

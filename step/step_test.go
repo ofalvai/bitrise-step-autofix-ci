@@ -68,7 +68,7 @@ func Test_isForkPR(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := Step{envRepo: fakeEnvRepo{
-				"GIT_REPOSITORY_URL":                    tt.repoURL,
+				"BITRISEIO_BASE_REPOSITORY_URL":         tt.repoURL,
 				"BITRISEIO_PULL_REQUEST_REPOSITORY_URL": tt.prRepoURL,
 			}}
 			assert.Equal(t, tt.want, s.isForkPR())

@@ -184,6 +184,14 @@ func isGitHubAppPermissionDenied(gitOutput string) bool {
 	return strings.Contains(gitOutput, "remote: Permission to") && strings.Contains(gitOutput, "denied")
 }
 
+func (s Step) setRemoteURL(url string) error {
+	out, err := s.commandFactory.Create("git", []string{"remote", "set-url", "origin", url}, nil).RunAndReturnTrimmedCombinedOutput()
+	if err != nil {
+		return fmt.Errorf("set remote URL: %w\n%s", err, out)
+	}
+	return nil
+}
+
 func (s Step) getRemoteURL() (string, error) {
 	out, err := s.commandFactory.Create("git", []string{"remote", "get-url", "origin"}, nil).RunAndReturnTrimmedCombinedOutput()
 	if err != nil {
