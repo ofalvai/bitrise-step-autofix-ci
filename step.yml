@@ -31,6 +31,11 @@ description: |
   - `AUTOFIX_FILE_COUNT`: number of files included in the autofix commit
 website: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
 source_code_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci
+
+
+
+
+
 support_url: https://github.com/bitrise-steplib/bitrise-step-autofix-ci/issues
 type_tags:
   - utility
@@ -39,7 +44,7 @@ toolkit:
   go:
     package_name: github.com/bitrise-steplib/bitrise-step-autofix-ci
 inputs:
-  - commit_subject: "Bitrise CI Autofix"
+- commit_subject: "Bitrise CI Autofix"
     opts:
       title: Commit subject
       summary: Subject line of the autofix commit message. Additional context (changed files, step URL) is automatically appended as the commit body.
