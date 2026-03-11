@@ -8,6 +8,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func Test_isSSHRemote(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want bool
+	}{
+		{name: "git@ URL", url: "git@github.com:org/repo.git", want: true},
+		{name: "ssh:// URL", url: "ssh://git@github.com/org/repo.git", want: true},
+		{name: "https URL", url: "https://github.com/org/repo.git", want: false},
+		{name: "empty string", url: "", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isSSHRemote(tt.url))
+		})
+	}
+}
+
 func Test_gitFetchAndCheckout_UsesCredentialHelper(t *testing.T) {
 	factory := &fakeCommandFactory{}
 	s := Step{
@@ -28,6 +47,65 @@ func Test_gitFetchAndCheckout_UsesCredentialHelper(t *testing.T) {
 	require.NotNil(t, fetchCall.opts)
 	assert.True(t, envContainsPrefix(fetchCall.opts.Env, "GIT_HELPER_USERNAME="), "GIT_HELPER_USERNAME missing from fetch env")
 	assert.True(t, envContainsPrefix(fetchCall.opts.Env, "GIT_HELPER_TOKEN="), "GIT_HELPER_TOKEN missing from fetch env")
+}
+
+func Test_gitFetchAndCheckout_NoCredentialHelper_SSH(t *testing.T) {
+	factory := &fakeCommandFactory{}
+	s := Step{
+		commandFactory: factory,
+		logger:         log.NewLogger(),
+	}
+
+	err := s.gitFetchAndCheckout("main", "", "")
+	require.NoError(t, err)
+
+	fetchCall, ok := factory.findCall("fetch")
+	require.True(t, ok, "no git fetch command was recorded")
+
+	assert.Empty(t, credentialHelperArg(fetchCall.args), "credential.helper should not be set for SSH remotes: %v", fetchCall.args)
+	if fetchCall.opts != nil {
+		assert.False(t, envContainsPrefix(fetchCall.opts.Env, "GIT_HELPER_TOKEN="), "GIT_HELPER_TOKEN should not be set for SSH remotes")
+	}
+}
+
+func Test_gitPush_UsesCredentialHelper(t *testing.T) {
+	factory := &fakeCommandFactory{}
+	s := Step{
+		commandFactory: factory,
+		logger:         log.NewLogger(),
+		envRepo:        fakeEnvRepo{},
+	}
+
+	err := s.gitPush("myuser", "mytoken", "main")
+	require.NoError(t, err)
+
+	pushCall, ok := factory.findCall("push")
+	require.True(t, ok, "no git push command was recorded")
+
+	assert.NotEmpty(t, credentialHelperArg(pushCall.args), "credential.helper arg not found in git push args: %v", pushCall.args)
+
+	require.NotNil(t, pushCall.opts)
+	assert.True(t, envContainsPrefix(pushCall.opts.Env, "GIT_HELPER_TOKEN="), "GIT_HELPER_TOKEN missing from push env")
+}
+
+func Test_gitPush_NoCredentialHelper_SSH(t *testing.T) {
+	factory := &fakeCommandFactory{}
+	s := Step{
+		commandFactory: factory,
+		logger:         log.NewLogger(),
+		envRepo:        fakeEnvRepo{},
+	}
+
+	err := s.gitPush("", "", "main")
+	require.NoError(t, err)
+
+	pushCall, ok := factory.findCall("push")
+	require.True(t, ok, "no git push command was recorded")
+
+	assert.Empty(t, credentialHelperArg(pushCall.args), "credential.helper should not be set for SSH remotes: %v", pushCall.args)
+	if pushCall.opts != nil {
+		assert.False(t, envContainsPrefix(pushCall.opts.Env, "GIT_HELPER_TOKEN="), "GIT_HELPER_TOKEN should not be set for SSH remotes")
+	}
 }
 
 func Test_isGitHubAppPermissionDenied(t *testing.T) {

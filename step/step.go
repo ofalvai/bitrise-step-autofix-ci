@@ -12,6 +12,7 @@ import (
 type Input struct {
 	GitUsername      string `env:"git_username"`
 	GitToken         string `env:"git_token"`
+	GitRemoteURL     string `env:"git_remote_url"`
 	CommitSubject    string `env:"commit_subject,required"`
 	IncludeUntracked bool   `env:"include_untracked,required"`
 	DryRun           bool   `env:"dry_run,required"`
@@ -54,11 +55,33 @@ func (s Step) Run() (Result, error) {
 	stepconf.Print(input)
 	s.logger.EnableDebugLog(input.Verbose)
 
+	if input.GitRemoteURL != "" {
+		if err := s.setRemoteURL(input.GitRemoteURL); err != nil {
+			return Result{}, fmt.Errorf("set remote URL: %w", err)
+		}
+	}
+
+	remoteURL, err := s.getRemoteURL()
+	if err != nil {
+		return Result{}, fmt.Errorf("detect remote URL: %w", err)
+	}
+
+	s.logger.Println()
+	useSSH := isSSHRemote(remoteURL)
+	if useSSH {
+		s.logger.Infof("Using SSH authentication (because of remote URL: %s)", remoteURL)
+		s.logger.Warnf("Warning: SSH keys usually only have read-only access to the repo. This use-case requires write access as well, so the push may fail.")
+		s.logger.Warnf("Consider switching to HTTPS authentication with a read-write token. To do so, set the git_token and git_remote_url inputs of this step and ensure the remote URL is an HTTPS one")
+	} else {
+		s.logger.Infof("Using HTTPS authentication (because of remote URL: %s)", remoteURL)
+	}
+	s.logger.Println()
+
 	// The step.yml defaults expand $GIT_HTTP_USERNAME/$GIT_HTTP_PASSWORD before the binary runs,
 	// so these are already resolved by the time we get here.
 	// Username is optional: GitHub App installations provide only a short-lived token.
-	if input.GitToken == "" {
-		return Result{}, fmt.Errorf("git token is required: set git_token input or ensure GIT_HTTP_PASSWORD is available in the environment")
+	if !useSSH && input.GitToken == "" {
+		return Result{}, fmt.Errorf("git token is required for authentication: set git_token input or ensure $GIT_HTTP_PASSWORD is available in the environment")
 	}
 
 	gitBranch := s.envRepo.Get("BITRISE_GIT_BRANCH")

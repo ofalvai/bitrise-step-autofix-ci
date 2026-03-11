@@ -92,17 +92,22 @@ func (s Step) gitFetchAndCheckout(branch, username, token string) error {
 	}
 	s.logger.Debugf("Temporary commit on merge ref: %s", tempCommit)
 
-	helper, err := gitcredential.WriteHelper(username, token)
-	if err != nil {
-		return err
+	var fetchArgs []string
+	var fetchOpts *command.Opts
+	if token != "" {
+		helper, err := gitcredential.WriteHelper(username, token)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(helper.Path)
+		fetchArgs = []string{"-c", fmt.Sprintf("credential.helper=%s", helper.Path), "fetch", "--depth", "1", "origin", branch}
+		fetchOpts = &command.Opts{Env: helper.Env}
+	} else {
+		fetchArgs = []string{"fetch", "--depth", "1", "origin", branch}
 	}
-	defer os.Remove(helper.Path)
 
 	s.logger.Debugf("$ git fetch --depth 1 origin %s", branch)
-	if out, err := s.commandFactory.Create("git", []string{
-		"-c", fmt.Sprintf("credential.helper=%s", helper.Path),
-		"fetch", "--depth", "1", "origin", branch,
-	}, &command.Opts{Env: helper.Env}).RunAndReturnTrimmedCombinedOutput(); err != nil {
+	if out, err := s.commandFactory.Create("git", fetchArgs, fetchOpts).RunAndReturnTrimmedCombinedOutput(); err != nil {
 		return fmt.Errorf("%w\n%s", err, out)
 	}
 
@@ -139,16 +144,22 @@ func (s Step) gitCommit(message string) error {
 
 func (s Step) gitPush(username, token, branch string) error {
 	s.logger.Debugf("$ git push origin HEAD:%s", branch)
-	helper, err := gitcredential.WriteHelper(username, token)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(helper.Path)
 
-	cmd := s.commandFactory.Create("git", []string{
-		"-c", fmt.Sprintf("credential.helper=%s", helper.Path),
-		"push", "origin", fmt.Sprintf("HEAD:%s", branch),
-	}, &command.Opts{Env: helper.Env})
+	var pushArgs []string
+	var pushOpts *command.Opts
+	if token != "" {
+		helper, err := gitcredential.WriteHelper(username, token)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(helper.Path)
+		pushArgs = []string{"-c", fmt.Sprintf("credential.helper=%s", helper.Path), "push", "origin", fmt.Sprintf("HEAD:%s", branch)}
+		pushOpts = &command.Opts{Env: helper.Env}
+	} else {
+		pushArgs = []string{"push", "origin", fmt.Sprintf("HEAD:%s", branch)}
+	}
+
+	cmd := s.commandFactory.Create("git", pushArgs, pushOpts)
 	out, err := cmd.RunAndReturnTrimmedCombinedOutput()
 	if err != nil {
 		if isGitHubAppPermissionDenied(out) {
@@ -171,4 +182,24 @@ func (s Step) gitPush(username, token, branch string) error {
 // the repository settings ("Extend GitHub App permissions to builds").
 func isGitHubAppPermissionDenied(gitOutput string) bool {
 	return strings.Contains(gitOutput, "remote: Permission to") && strings.Contains(gitOutput, "denied")
+}
+
+func (s Step) setRemoteURL(url string) error {
+	out, err := s.commandFactory.Create("git", []string{"remote", "set-url", "origin", url}, nil).RunAndReturnTrimmedCombinedOutput()
+	if err != nil {
+		return fmt.Errorf("set remote URL: %w\n%s", err, out)
+	}
+	return nil
+}
+
+func (s Step) getRemoteURL() (string, error) {
+	out, err := s.commandFactory.Create("git", []string{"remote", "get-url", "origin"}, nil).RunAndReturnTrimmedCombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("get remote URL: %w", err)
+	}
+	return out, nil
+}
+
+func isSSHRemote(url string) bool {
+	return strings.HasPrefix(url, "git@") || strings.HasPrefix(url, "ssh://")
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_isPRBuild(t *testing.T) {
@@ -22,6 +23,19 @@ func Test_isPRBuild(t *testing.T) {
 			assert.Equal(t, tt.want, s.isPRBuild())
 		})
 	}
+}
+
+func Test_getRemoteURL(t *testing.T) {
+	factory := &fakeCommandFactory{
+		responses: map[string]string{
+			"get-url": "git@github.com:org/repo.git",
+		},
+	}
+	s := Step{commandFactory: factory}
+
+	url, err := s.getRemoteURL()
+	require.NoError(t, err)
+	assert.Equal(t, "git@github.com:org/repo.git", url)
 }
 
 func Test_isForkPR(t *testing.T) {
@@ -54,7 +68,7 @@ func Test_isForkPR(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := Step{envRepo: fakeEnvRepo{
-				"GIT_REPOSITORY_URL":                    tt.repoURL,
+				"BITRISEIO_BASE_REPOSITORY_URL":         tt.repoURL,
 				"BITRISEIO_PULL_REQUEST_REPOSITORY_URL": tt.prRepoURL,
 			}}
 			assert.Equal(t, tt.want, s.isForkPR())
